@@ -5,10 +5,26 @@
 #include <sys/inotify.h>
 #include <string.h>
 #include <stdio.h>
+#include <pthread.h>
+
 
 #define FILENAME_LEN 24
 #define EVENT_SIZE (sizeof (struct inotify_event))
 #define BUF_LEN (1024 * (EVENT_SIZE + FILENAME_LEN))
+
+#define MAIL_CMD "/usr/bin/mail"
+#define MAIL_SUBJECT "samba notification"
+#define MAIL_TO "fede.hernandez@gmail.com"
+
+
+typedef struct mon_params {
+	int fd;
+	int flags;
+} mon_params_t;
+
+
+void *monitor(void *arg);
+int send_email(const char *to, const char *subject, const char *msg);
 
 int main(int argc, char **argv) 
 {
@@ -27,10 +43,7 @@ int main(int argc, char **argv)
 	}
 
 	/* Add a watcher */
-	wd = inotify_add_watch(fd, "./",
-		IN_ACCESS | IN_CREATE | IN_DELETE | IN_OPEN );
-
-	// IN_ALL_EVENTS -> macro for all events
+	wd = inotify_add_watch(fd, "./", IN_CREATE | IN_DELETE);
 
 	if (wd < 0) {
 		perror("inotify_add_watch");
@@ -45,10 +58,6 @@ int main(int argc, char **argv)
 				switch (event->mask) {
 					case IN_CREATE:
 						printf("The file %s was created.\n", event->name);
-						break;
-
-					case IN_ACCESS:
-						printf("The file %s was read.\n", event->name);
 						break;
 
 					case IN_OPEN:
@@ -67,4 +76,30 @@ int main(int argc, char **argv)
 	close(fd);
 
 	return 0;
+}
+
+
+void *monitor(void *arg) 
+{
+	mon_params_t params = *(mon_params_t *)arg;
+	int wd;
+		
+	// @@ TODO: implement this!!
+
+	pthread_exit(NULL);
+}
+
+
+int send_email(const char *to, const char *subject, const char *msg)
+{
+	char mailCmd[256];
+	FILE *email = NULL;	
+
+	memset(mailCmd, 0, sizeof mailCmd);
+
+	snprintf(mailCmd, sizeof mailCmd, "%s -s '%s' %s", MAIL_CMD, MAIL_SUBJECT, MAIL_TO);
+	email = popen(mailCmd, "w");
+	fprintf(email, "%s\n", msg);
+	
+	pclose(email);
 }
