@@ -1,14 +1,18 @@
 CC = gcc
-TARGETS = topo_gigio
+TARGETS = topogigio
 
 all: $(TARGETS)
 
-topo_gigio: inotify.o
+topogigio: inotify.o
 		$(CC) $(CFLAGS) -o $@ $^ $(LDLIBS)
 
 
 pre:
 	sudo apt-get install libesmtp5
+
+
+test: topogigio
+	./topogigio
 
 
 clean:
