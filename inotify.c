@@ -8,13 +8,14 @@
 #include <pthread.h>
 
 
-#define FILENAME_LEN 24
+#define FILENAME_LEN 80
 #define EVENT_SIZE (sizeof (struct inotify_event))
 #define BUF_LEN (1024 * (EVENT_SIZE + FILENAME_LEN))
 
-#define MAIL_CMD "/usr/bin/mail"
+#define MAIL_CMD "/usr/sbin/sendmail -t %s"
 #define MAIL_SUBJECT "samba notification"
 #define MAIL_TO "fede.hernandez@gmail.com"
+#define MAIL_FROM "topo@rotterdam-cs.com"
 
 
 typedef struct mon_params {
@@ -57,6 +58,7 @@ int main(int argc, char **argv)
 			if (event->len) {
 				switch (event->mask) {
 					case IN_CREATE:
+						send_email(MAIL_TO, MAIL_SUBJECT, "file created.");
 						printf("The file %s was created.\n", event->name);
 						break;
 
@@ -65,6 +67,7 @@ int main(int argc, char **argv)
 						break;
 
 					case IN_DELETE:
+						send_email(MAIL_TO, MAIL_SUBJECT, "file deleted.");
 						printf("The file %s was deleted.\n", event->name);
 						break;
 				}
@@ -92,14 +95,19 @@ void *monitor(void *arg)
 
 int send_email(const char *to, const char *subject, const char *msg)
 {
-	char mailCmd[256];
 	FILE *email = NULL;	
+	char mailCmd[256];
 
 	memset(mailCmd, 0, sizeof mailCmd);
 
-	snprintf(mailCmd, sizeof mailCmd, "%s -s '%s' %s", MAIL_CMD, MAIL_SUBJECT, MAIL_TO);
+	snprintf(mailCmd, sizeof mailCmd, MAIL_CMD, to);
+
 	email = popen(mailCmd, "w");
-	fprintf(email, "%s\n", msg);
+
+	fprintf(email, "From: %s\r\n", MAIL_FROM);
+	fprintf(email, "Subject: %s\r\n", subject);
+	fprintf(email, "%s\r\n", msg);
+	fprintf(email, ".\r\n", msg);
 	
 	pclose(email);
 }
