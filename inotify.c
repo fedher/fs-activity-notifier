@@ -35,6 +35,7 @@ int main(int argc, char **argv)
 	char buffer[BUF_LEN];
 	int nevents = 0;
 	int i;
+	char *cwd = NULL; // working directory
 
 	memset(buffer, 0, sizeof buffer);
 
@@ -44,11 +45,18 @@ int main(int argc, char **argv)
 	}
 
 	/* Add a watcher */
+	if ((cwd = getcwd(NULL, 0)) == NULL) {
+		perror("getcwd()");
+		return -2;
+	}
+	
+	printf("cwd: %s\n", cwd);
+
 	wd = inotify_add_watch(fd, "./", IN_CREATE | IN_DELETE);
 
 	if (wd < 0) {
 		perror("inotify_add_watch");
-		return -2;
+		return -3;
 	}
 
 	while ((nevents = read(fd, buffer, sizeof buffer)) > 0) {
@@ -77,6 +85,7 @@ int main(int argc, char **argv)
 	
 	inotify_rm_watch(fd, wd);
 	close(fd);
+	if (cwd) free(cwd);
 
 	return 0;
 }
