@@ -12,6 +12,7 @@
 #define EVENT_SIZE (sizeof (struct inotify_event))
 #define BUF_LEN (1024 * (EVENT_SIZE + FILENAME_LEN))
 
+
 #define MAIL_CMD "/usr/sbin/sendmail -t %s"
 #define MAIL_SUBJECT "samba notification"
 #define MAIL_TO "fede.hernandez@gmail.com"
