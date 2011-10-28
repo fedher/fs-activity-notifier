@@ -22,7 +22,6 @@
 
 
 typedef struct mon_params {
-	int fd;
 	int flags;
 	char dir_path[256];
 } mon_params_t;
@@ -31,19 +30,13 @@ typedef struct mon_params {
 void *monitor(void *arg);
 int send_email(const char *to, const char *subject, const char *msg);
 int dir_filter(const struct dirent *e);
-int dir_add_monitors(char *path, struct dirent **namelist, int fd, int flags);
+int dir_add_monitors(char *path, struct dirent **namelist, int flags);
 
 
 int main(int argc, char **argv) 
 {
-	int fd;
 	char *cwd = NULL; // working directory
 	struct dirent **namelist;
-
-	if ((fd = inotify_init()) < 0) {
-		perror("inotify_init");
-		return -1;
-	}
 
 	if ((cwd = getcwd(NULL, 0)) == NULL) {
 		perror("getcwd()");
@@ -53,9 +46,8 @@ int main(int argc, char **argv)
 	printf("cwd: %s\n", cwd);
 
 	/* Sets a monitor by each directory */
-	dir_add_monitors(cwd, namelist, fd, IN_CREATE | IN_DELETE);
+	dir_add_monitors(cwd, namelist, IN_CREATE | IN_DELETE);
 	
-	close(fd);
 	if (cwd) free(cwd);
 
 	return 0;
@@ -66,27 +58,42 @@ void *monitor(void *arg)
 {
 	mon_params_t param = *(mon_params_t *)arg;
 	int wd; // watch descriptor
+	int fd;
 	struct inotify_event *event;
 	char buffer[BUF_LEN];
 	int nevents = 0;
 	int i;
 
+	pthread_detach(pthread_self());
+	
+	if ((fd = inotify_init()) < 0) {
+		perror("inotify_init");
+		goto err;
+	}
+
+	#if DEBUG
+	printf("tid: %ld\n", pthread_self());
+	printf("dir: %s\n", param.dir_path);
+	printf("dir: %d\n", fd);
+	printf("dir: %d\n", param.flags);
+	#endif
+
 	//pthread_detach();
 	memset(buffer, 0, sizeof buffer);
 
-	if ((wd = inotify_add_watch(param.fd, param.dir_path, param.flags)) < 0) {
+	if ((wd = inotify_add_watch(fd, param.dir_path, param.flags)) < 0) {
 		perror("inotify_add_watch");
-		pthread_exit(NULL);
+		goto err;
 	}
 
-	while ((nevents = read(param.fd, buffer, sizeof buffer)) > 0) {
+	while ((nevents = read(fd, buffer, sizeof buffer)) > 0) {
 		for (i = 0; i < nevents; i += EVENT_SIZE + event->len) {
 			event = (struct inotify_event *) &buffer[i];
 
 			if (event->len) {
 				switch (event->mask) {
 					case IN_CREATE:
-						//send_email(MAIL_TO, MAIL_SUBJECT, "file created.");
+						send_email(MAIL_TO, MAIL_SUBJECT, "file created.");
 						printf("The file %s was created.\n", event->name);
 						break;
 
@@ -95,16 +102,19 @@ void *monitor(void *arg)
 						break;
 
 					case IN_DELETE:
-						//send_email(MAIL_TO, MAIL_SUBJECT, "file deleted.");
+						send_email(MAIL_TO, MAIL_SUBJECT, "file deleted.");
 						printf("The file %s was deleted.\n", event->name);
 						break;
 				}
 			}
 		}
 	}
+	
+	inotify_rm_watch(fd, wd);
 
-	inotify_rm_watch(param.fd, wd);
+err:
 	if (arg) free(arg);
+	close(fd);
 	pthread_exit(NULL);
 }
 
@@ -140,7 +150,7 @@ int filter_dir(const struct dirent *e) {
 	return 0; 
 }
 
-int dir_add_monitors(char *path, struct dirent **namelist, int fd, int flags) {
+int dir_add_monitors(char *path, struct dirent **namelist, int flags) {
 	char dir_path[256];
 	int ndirs;
 	mon_params_t *m_param;
@@ -155,17 +165,18 @@ int dir_add_monitors(char *path, struct dirent **namelist, int fd, int flags) {
 		return -1;
 	} else {
 		while (ndirs--) {
+
 			//printf("%s/%s\n", path, namelist[ndirs]->d_name);
 			snprintf(dir_path, sizeof dir_path, "%s/%s", path, namelist[ndirs]->d_name);
-			dir_add_monitors(dir_path, namelist, fd, flags);
+			dir_add_monitors(dir_path, namelist, flags);
 			free(namelist[ndirs]);
 		
-			if ((m_param = malloc(sizeof m_param)) == NULL) {
+			if ((m_param = malloc(sizeof *m_param)) == NULL) {
 				perror("malloc()");
-				return -2;	
+				return -3;	
 			}
-		
-			m_param->fd = fd;
+	
+			/* threads params */
 			m_param->flags = flags;
 			strncpy(m_param->dir_path, dir_path, sizeof m_param->dir_path);
 	
@@ -174,4 +185,9 @@ int dir_add_monitors(char *path, struct dirent **namelist, int fd, int flags) {
 		}
 		free(namelist);
 	}
+
+	// @@ FIXME: el padre debería quedarse esperando a sus hijos, sino al terminar
+	// mata los hilos.
+
+	return 0;
 }
