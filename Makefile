@@ -1,6 +1,7 @@
 CC = gcc
 TARGETS = topogigio scandir_test readdir_test
 LDLIBS = -lpthread
+CFLAGS = -DDEBUG=1
 
 all: $(TARGETS)
 
