@@ -14,6 +14,9 @@
 #define EVENT_SIZE (sizeof (struct inotify_event))
 #define BUF_LEN (1024 * (EVENT_SIZE + FILENAME_LEN))
 
+#define MAX_DIR_NUMBER 64
+
+#define MAX_DIR_PATH 256
 
 #define MAIL_CMD "/usr/sbin/sendmail -t %s"
 #define MAIL_SUBJECT "samba notification"
@@ -23,7 +26,7 @@
 
 typedef struct mon_params {
 	int flags;
-	char dir_path[256];
+	char dir_path[MAX_DIR_PATH];
 } mon_params_t;
 
 
@@ -152,41 +155,43 @@ int filter_dir(const struct dirent *e) {
 }
 
 int dir_add_monitors(char *path, struct dirent **namelist, int flags) {
-	char dir_path[256];
+	char dir_path[MAX_DIR_PATH];
 	int ndirs, nths;
 	mon_params_t *m_param;
-	pthread_t tid[10]; // @@ FIXME: the size shouldn't be a fixed value
+	pthread_t tid[MAX_DIR_NUMBER]; 
 	int i;
 
 	memset(dir_path, 0, sizeof dir_path);
+	memset(tid, 0, sizeof tid);
 
 	nths = ndirs = scandir(path, &namelist, filter_dir, alphasort);
 
 	if (ndirs < 0) {
 		perror("scandir");
 		return -1;
-	} else {
-		while (ndirs--) {
+	} 
+	while (ndirs--) {
+		#if DEBUG
+		printf("%s/%s\n", path, namelist[ndirs]->d_name);
+		#endif
 
-			//printf("%s/%s\n", path, namelist[ndirs]->d_name);
-			snprintf(dir_path, sizeof dir_path, "%s/%s", path, namelist[ndirs]->d_name);
-			dir_add_monitors(dir_path, namelist, flags);
-			free(namelist[ndirs]);
-		
-			if ((m_param = malloc(sizeof *m_param)) == NULL) {
-				perror("malloc()");
-				return -3;	
-			}
-	
-			/* threads params */
-			m_param->flags = flags;
-			strncpy(m_param->dir_path, dir_path, sizeof m_param->dir_path);
-	
-			pthread_create(&tid[ndirs], NULL, monitor, (void *)m_param);
-			//monitor(dir_path);
+		snprintf(dir_path, sizeof dir_path, "%s/%s", path, namelist[ndirs]->d_name);
+		dir_add_monitors(dir_path, namelist, flags);
+		free(namelist[ndirs]);
+
+		if ((m_param = malloc(sizeof *m_param)) == NULL) {
+			perror("malloc()");
+			return -3;	
 		}
-		free(namelist);
+
+		/* threads params */
+		m_param->flags = flags;
+		strncpy(m_param->dir_path, dir_path, sizeof m_param->dir_path);
+
+		/* monitor creation */	
+		pthread_create(&tid[ndirs], NULL, monitor, (void *)m_param);
 	}
+	free(namelist);
 
 	for (i = 0; i < nths; i++)
 		pthread_join(tid[i], NULL);
