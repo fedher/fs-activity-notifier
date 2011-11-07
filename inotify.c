@@ -48,7 +48,8 @@ int main(int argc, char **argv)
 	/* Sets a monitor by each directory */
 	dir_add_monitors(cwd, namelist, IN_CREATE | IN_DELETE);
 	
-	if (cwd) free(cwd);
+	if (cwd) 
+		free(cwd);
 
 	return 0;
 }
@@ -152,13 +153,14 @@ int filter_dir(const struct dirent *e) {
 
 int dir_add_monitors(char *path, struct dirent **namelist, int flags) {
 	char dir_path[256];
-	int ndirs;
+	int ndirs, nths;
 	mon_params_t *m_param;
-	pthread_t tid;	
+	pthread_t tid[10]; // @@ FIXME: the size shouldn't be a fixed value
+	int i;
 
 	memset(dir_path, 0, sizeof dir_path);
 
-	ndirs = scandir(path, &namelist, filter_dir, alphasort);
+	nths = ndirs = scandir(path, &namelist, filter_dir, alphasort);
 
 	if (ndirs < 0) {
 		perror("scandir");
@@ -180,14 +182,14 @@ int dir_add_monitors(char *path, struct dirent **namelist, int flags) {
 			m_param->flags = flags;
 			strncpy(m_param->dir_path, dir_path, sizeof m_param->dir_path);
 	
-			pthread_create(&tid, NULL, monitor, (void *)m_param);
+			pthread_create(&tid[ndirs], NULL, monitor, (void *)m_param);
 			//monitor(dir_path);
 		}
 		free(namelist);
 	}
 
-	// @@ FIXME: el padre debería quedarse esperando a sus hijos, sino al terminar
-	// mata los hilos.
+	for (i = 0; i < nths; i++)
+		pthread_join(tid[i], NULL);
 
 	return 0;
 }
