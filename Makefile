@@ -5,7 +5,7 @@ CFLAGS = -DDEBUG=1
 
 all: $(TARGETS)
 
-topogigio: inotify.o
+topogigio: inotify.o scandir.o monitor.o mail.o
 		$(CC) $(CFLAGS) -o $@ $^ $(LDLIBS)
 
 

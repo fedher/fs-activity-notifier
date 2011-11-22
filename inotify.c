@@ -2,43 +2,18 @@
  * J. Federico Hernandez <fede@rotterdam-cs.com>
  */
 #include <unistd.h>
-#include <sys/inotify.h>
-#include <string.h>
-#include <stdlib.h>
 #include <stdio.h>
-#include <pthread.h>
+#include <stdlib.h>
 #include <dirent.h>
+#include <sys/inotify.h>
 
-
-#define FILENAME_LEN 80
-#define EVENT_SIZE (sizeof (struct inotify_event))
-#define BUF_LEN (1024 * (EVENT_SIZE + FILENAME_LEN))
-
-#define MAX_DIR_NUMBER 64
-
-#define MAX_DIR_PATH 256
-
-#define MAIL_CMD "/usr/sbin/sendmail -t %s"
-#define MAIL_SUBJECT "samba notification"
-#define MAIL_TO "fede.hernandez@gmail.com"
-#define MAIL_FROM "topo@rotterdam-cs.com"
-
-
-typedef struct mon_params {
-	int flags;
-	char dir_path[MAX_DIR_PATH];
-} mon_params_t;
-
-
-void *monitor(void *arg);
-int send_email(const char *to, const char *subject, const char *msg);
-int dir_filter(const struct dirent *e);
-int dir_add_monitors(char *path, struct dirent **namelist, int flags);
+#include "monitor.h"
+#include "scandir.h"
 
 
 int main(int argc, char **argv) 
 {
-	char *cwd = NULL; // working directory
+	char *cwd = NULL; /* working directory */
 	struct dirent **namelist;
 
 	if ((cwd = getcwd(NULL, 0)) == NULL) {
@@ -46,9 +21,11 @@ int main(int argc, char **argv)
 		return -2;
 	}
 	
+	#if DEBUG	
 	printf("cwd: %s\n", cwd);
+	#endif
 
-	/* Sets a monitor by each directory */
+	/* Adds a monitor to each directory inside of the current directory */
 	dir_add_monitors(cwd, namelist, IN_CREATE | IN_DELETE);
 	
 	if (cwd) 
@@ -57,144 +34,3 @@ int main(int argc, char **argv)
 	return 0;
 }
 
-
-void *monitor(void *arg) 
-{
-	mon_params_t param = *(mon_params_t *)arg;
-	int wd; // watch descriptor
-	int fd;
-	struct inotify_event *event;
-	char buffer[BUF_LEN];
-	int nevents = 0;
-	int i;
-
-	pthread_detach(pthread_self());
-	
-	if ((fd = inotify_init()) < 0) {
-		perror("inotify_init");
-		goto err;
-	}
-
-	#if DEBUG
-	printf("tid: %ld\n", pthread_self());
-	printf("dir: %s\n", param.dir_path);
-	printf("dir: %d\n", fd);
-	printf("dir: %d\n", param.flags);
-	#endif
-
-	//pthread_detach();
-	memset(buffer, 0, sizeof buffer);
-
-	if ((wd = inotify_add_watch(fd, param.dir_path, param.flags)) < 0) {
-		perror("inotify_add_watch");
-		goto err;
-	}
-
-	while ((nevents = read(fd, buffer, sizeof buffer)) > 0) {
-		for (i = 0; i < nevents; i += EVENT_SIZE + event->len) {
-			event = (struct inotify_event *) &buffer[i];
-
-			if (event->len) {
-				switch (event->mask) {
-					case IN_CREATE:
-						send_email(MAIL_TO, MAIL_SUBJECT, "file created.");
-						printf("The file %s was created.\n", event->name);
-						break;
-
-					case IN_OPEN:
-						printf("The file %s was opened.\n", event->name);
-						break;
-
-					case IN_DELETE:
-						send_email(MAIL_TO, MAIL_SUBJECT, "file deleted.");
-						printf("The file %s was deleted.\n", event->name);
-						break;
-				}
-			}
-		}
-	}
-	
-	inotify_rm_watch(fd, wd);
-
-err:
-	if (arg) free(arg);
-	close(fd);
-	pthread_exit(NULL);
-}
-
-
-int send_email(const char *to, const char *subject, const char *msg)
-{
-	FILE *email = NULL;	
-	char mailCmd[256];
-
-	memset(mailCmd, 0, sizeof mailCmd);
-
-	snprintf(mailCmd, sizeof mailCmd, MAIL_CMD, to);
-
-	email = popen(mailCmd, "w");
-
-	fprintf(email, "From: %s\r\n", MAIL_FROM);
-	fprintf(email, "Subject: %s\r\n", subject);
-	fprintf(email, "%s\r\n", msg);
-	fprintf(email, ".\r\n", msg);
-	
-	pclose(email);
-}
-
-int filter_dir(const struct dirent *e) {
-	/* Skips the directorys starting with '.'. */
-	if (strncmp(e->d_name, ".", 1) == 0)
-		return 0;
-
-	/* Chooses only directories. */
-	if (e->d_type == DT_DIR)
-		return 1;
-
-	return 0; 
-}
-
-int dir_add_monitors(char *path, struct dirent **namelist, int flags) {
-	char dir_path[MAX_DIR_PATH];
-	int ndirs, nths;
-	mon_params_t *m_param;
-	pthread_t tid[MAX_DIR_NUMBER]; 
-	int i;
-
-	memset(dir_path, 0, sizeof dir_path);
-	memset(tid, 0, sizeof tid);
-
-	nths = ndirs = scandir(path, &namelist, filter_dir, alphasort);
-
-	if (ndirs < 0) {
-		perror("scandir");
-		return -1;
-	} 
-	while (ndirs--) {
-		#if DEBUG
-		printf("%s/%s\n", path, namelist[ndirs]->d_name);
-		#endif
-
-		snprintf(dir_path, sizeof dir_path, "%s/%s", path, namelist[ndirs]->d_name);
-		dir_add_monitors(dir_path, namelist, flags);
-		free(namelist[ndirs]);
-
-		if ((m_param = malloc(sizeof *m_param)) == NULL) {
-			perror("malloc()");
-			return -3;	
-		}
-
-		/* threads params */
-		m_param->flags = flags;
-		strncpy(m_param->dir_path, dir_path, sizeof m_param->dir_path);
-
-		/* monitor creation */	
-		pthread_create(&tid[ndirs], NULL, monitor, (void *)m_param);
-	}
-	free(namelist);
-
-	for (i = 0; i < nths; i++)
-		pthread_join(tid[i], NULL);
-
-	return 0;
-}
