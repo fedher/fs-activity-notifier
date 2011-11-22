@@ -1,3 +1,7 @@
+#
+# J. Federico Hernandez <fede@rotterdam-cs.com>
+#
+
 CC = gcc
 TARGETS = topogigio scandir_test readdir_test
 LDLIBS = -lpthread

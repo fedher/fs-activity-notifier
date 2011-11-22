@@ -25,12 +25,13 @@ int main(int argc, char **argv)
 	printf("cwd: %s\n", cwd);
 	#endif
 
-	/* Adds a monitor to each directory inside of the current directory */
+	/* 
+	 * Adds recursively a monitor to each found directory inside of the current
+	 * working directory 
+	 */
 	dir_add_monitors(cwd, namelist, IN_CREATE | IN_DELETE);
 	
-	if (cwd) 
-		free(cwd);
-
+	if (cwd) free(cwd);
 	return 0;
 }
 
