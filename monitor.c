@@ -1,11 +1,12 @@
 /*
- * J. Federico Hernandez <fede@rotterdam-cs.com>
+ * J. Federico Hernandez <fede.hernandez@gmail.com>
  */
 #include <unistd.h>
 #include <stdio.h>
 #include <pthread.h>
 #include <sys/inotify.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "monitor.h"
 #include "mail.h"

@@ -1,5 +1,5 @@
 /*
- * J. Federico Hernandez <fede@rotterdam-cs.com>
+ * J. Federico Hernandez <fede.hernandez@gmail.com>
  */
 #include <stdio.h>
 #include <string.h>
