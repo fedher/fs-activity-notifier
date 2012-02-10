@@ -9,7 +9,8 @@
 #include <stdlib.h>
 
 #include "monitor.h"
-#include "mail.h"
+#include "notifier.h"
+
 
 void *monitor(void *arg) 
 {
@@ -20,6 +21,7 @@ void *monitor(void *arg)
 	char buffer[BUF_LEN];
 	int nevents = 0;
 	int i;
+	notifier_t *notifier = param.notifier;
 
 	if ((fd = inotify_init()) < 0) {
 		perror("inotify_init");
@@ -47,7 +49,8 @@ void *monitor(void *arg)
 			if (event->len) {
 				switch (event->mask) {
 				case IN_CREATE:
-					send_email(MAIL_TO, MAIL_SUBJECT, "file created.");
+					//send_email(MAIL_TO, MAIL_SUBJECT, "file created.");
+					notifier->oper("file created", notifier->param);
 					printf("The file %s was created.\n", event->name);
 					break;
 
@@ -56,7 +59,8 @@ void *monitor(void *arg)
 					break;
 
 				case IN_DELETE:
-					send_email(MAIL_TO, MAIL_SUBJECT, "file deleted.");
+					//send_email(MAIL_TO, MAIL_SUBJECT, "file deleted.");
+					notifier->oper("file deleted", notifier->param);
 					printf("The file %s was deleted.\n", event->name);
 					break;
 				}

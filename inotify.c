@@ -9,29 +9,43 @@
 
 #include "monitor.h"
 #include "scandir.h"
+#include "notifier.h"
+#include "mail.h"
 
 
 int main(int argc, char **argv) 
 {
-	char *cwd = NULL; /* working directory */
+	char *working_dir = NULL; /* working directory */
 	struct dirent **namelist;
 
-	if ((cwd = getcwd(NULL, 0)) == NULL) {
+	notifier_param_t notif_param = {
+		.from = MAIL_FROM,
+		.to = MAIL_TO,
+		.subject = MAIL_SUBJECT
+	};
+
+	notifier_t notifier = {
+		.oper = send_email,
+		.param = &notif_param 
+	};
+
+
+	if ((working_dir = getcwd(NULL, 0)) == NULL) {
 		perror("getcwd()");
 		return -2;
 	}
 	
 	#if DEBUG	
-	printf("cwd: %s\n", cwd);
+	printf("working_dir: %s\n", working_dir);
 	#endif
 
 	/* 
 	 * Adds recursively a monitor to each found directory inside of the current
 	 * working directory 
 	 */
-	dir_add_monitors(cwd, namelist, IN_CREATE | IN_DELETE);
+	dir_add_monitors(working_dir, namelist, IN_CREATE | IN_DELETE, &notifier);
 	
-	if (cwd) free(cwd);
+	if (working_dir) free(working_dir);
 	return 0;
 }
 

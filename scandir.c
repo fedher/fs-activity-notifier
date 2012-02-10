@@ -14,7 +14,7 @@
  */
 static int filter_dir(const struct dirent *e) 
 {
-	/* Skips the directorys starting with '.'. */
+	/* Skips the directorys starting with '.' */
 	if (strncmp(e->d_name, ".", 1) == 0)
 		return 0;
 
@@ -25,12 +25,13 @@ static int filter_dir(const struct dirent *e)
 	return 0; 
 }
 
-int dir_add_monitors(char *path, struct dirent **namelist, int flags) 
+int dir_add_monitors(char *path, struct dirent **namelist, int flags, 
+				notifier_t *notifier) 
 {
 	char dir_path[MAX_DIR_PATH];
-	int ndirs; 	/* directories number */
-	int nths;	/* threads number */
-	mon_params_t *m_param;
+	int ndirs; 				/* directories number */
+	int nths;				/* threads number */
+	mon_params_t *m_param; 	/* monitor params */
 	pthread_t tid[MAX_DIR_NUMBER]; 
 	int i;
 
@@ -52,7 +53,7 @@ int dir_add_monitors(char *path, struct dirent **namelist, int flags)
 		#endif
 
 		snprintf(dir_path, sizeof dir_path, "%s/%s", path, namelist[ndirs]->d_name);
-		dir_add_monitors(dir_path, namelist, flags);
+		dir_add_monitors(dir_path, namelist, flags, notifier);
 		free(namelist[ndirs]);
 
 		if ((m_param = malloc(sizeof *m_param)) == NULL) {
@@ -60,7 +61,7 @@ int dir_add_monitors(char *path, struct dirent **namelist, int flags)
 			return -3;	
 		}
 
-		/* threads params */
+		/* monitor params */
 		m_param->flags = flags;
 		strncpy(m_param->dir_path, dir_path, sizeof m_param->dir_path);
 

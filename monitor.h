@@ -5,10 +5,12 @@
 #define BUF_LEN (1024 * (EVENT_SIZE + FILENAME_LEN))
 
 #include "scandir.h"
+#include "notifier.h"
 
 typedef struct mon_params {
 	int flags;
 	char dir_path[MAX_DIR_PATH];
+	notifier_t *notifier;
 } mon_params_t;
 
 /**

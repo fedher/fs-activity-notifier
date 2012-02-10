@@ -6,19 +6,20 @@
 
 #include "mail.h"
 
-int send_email(const char *to, const char *subject, const char *msg)
+int send_email(const char *msg, notifier_t *notifier)
 {
 	FILE *email = NULL;	
 	char mailCmd[256];
+	notifier_param_t param = *(notifier->param);
 
 	memset(mailCmd, 0, sizeof mailCmd);
 
-	snprintf(mailCmd, sizeof mailCmd, MAIL_CMD, to);
+	snprintf(mailCmd, sizeof mailCmd, MAIL_CMD, param.to);
 
 	email = popen(mailCmd, "w");
 
-	fprintf(email, "From: %s\r\n", MAIL_FROM);
-	fprintf(email, "Subject: %s\r\n", subject);
+	fprintf(email, "From: %s\r\n", param.from);
+	fprintf(email, "Subject: %s\r\n", param.subject);
 	fprintf(email, "%s\r\n", msg);
 	fprintf(email, ".\r\n", msg);
 	
