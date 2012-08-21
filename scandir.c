@@ -46,7 +46,7 @@ int dir_add_monitors(char *path, struct dirent **namelist, int flags,
 		return -1;
 	} 
 
-	/* Creates a monitor by each found directory */
+	/* Creates a monitor for each directory */
 	while (ndirs--) {
 		#if DEBUG
 		printf("%s/%s\n", path, namelist[ndirs]->d_name);
@@ -64,6 +64,7 @@ int dir_add_monitors(char *path, struct dirent **namelist, int flags,
 		/* monitor params */
 		m_param->flags = flags;
 		strncpy(m_param->dir_path, dir_path, sizeof m_param->dir_path);
+		m_param->notifier = notifier;
 
 		/* monitor creation */	
 		pthread_create(&tid[ndirs], NULL, monitor, (void *)m_param);
