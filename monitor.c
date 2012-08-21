@@ -14,14 +14,14 @@
 
 void *monitor(void *arg) 
 {
-	mon_params_t param = *(mon_params_t *)arg;
+	mon_params_t *mon_param = (mon_params_t *)arg;
 	int wd; /* watch descriptor */
 	int fd;
 	struct inotify_event *event; /* fs event */
 	char buffer[BUF_LEN];
 	int nevents = 0;
 	int i;
-	notifier_t *notifier = param.notifier;
+	notifier_t *notifier = mon_param->notifier;
 
 	if ((fd = inotify_init()) < 0) {
 		perror("inotify_init");
@@ -30,14 +30,14 @@ void *monitor(void *arg)
 
 	#if DEBUG
 	printf("tid: %ld\n", pthread_self());
-	printf("dir: %s\n", param.dir_path);
-	printf("dir: %d\n", fd);
-	printf("dir: %d\n", param.flags);
+	printf("path: %s\n", mon_param->dir_path);
+	printf("fd: %d\n", fd);
+	printf("flags: %d\n", mon_param->flags);
 	#endif
-
+	
 	memset(buffer, 0, sizeof buffer);
 
-	if ((wd = inotify_add_watch(fd, param.dir_path, param.flags)) < 0) {
+	if ((wd = inotify_add_watch(fd, mon_param->dir_path, mon_param->flags)) < 0) {
 		perror("inotify_add_watch");
 		goto err;
 	}
@@ -49,9 +49,7 @@ void *monitor(void *arg)
 			if (event->len) {
 				switch (event->mask) {
 				case IN_CREATE:
-					//send_email(MAIL_TO, MAIL_SUBJECT, "file created.");
 					notifier->oper("file created", notifier->param);
-					printf("The file %s was created.\n", event->name);
 					break;
 
 				case IN_OPEN:
@@ -59,9 +57,7 @@ void *monitor(void *arg)
 					break;
 
 				case IN_DELETE:
-					//send_email(MAIL_TO, MAIL_SUBJECT, "file deleted.");
 					notifier->oper("file deleted", notifier->param);
-					printf("The file %s was deleted.\n", event->name);
 					break;
 				}
 			}
