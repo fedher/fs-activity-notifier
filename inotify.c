@@ -14,7 +14,7 @@
 
 int _send_email(const char *msg, notifier_param_t *param) 
 {
-	send_email(param->to, param->subject, msg);
+	send_email(msg, param);
 	printf("email: %s\n", msg);
 	return 0;
 }

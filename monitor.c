@@ -49,6 +49,9 @@ void *monitor(void *arg)
 			if (event->len) {
 				switch (event->mask) {
 				case IN_CREATE:
+					#if DEBUG
+					printf("file created ...");
+					#endif
 					notifier->oper("file created", notifier->param);
 					break;
 
@@ -57,6 +60,9 @@ void *monitor(void *arg)
 					break;
 
 				case IN_DELETE:
+					#if DEBUG
+					printf("file deleted ...");
+					#endif
 					notifier->oper("file deleted", notifier->param);
 					break;
 				}
