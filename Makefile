@@ -13,10 +13,6 @@ topogigio: inotify.o scandir.o monitor.o mail.o
 		$(CC) $(CFLAGS) -o $@ $^ $(LDLIBS)
 
 
-pre:
-	sudo apt-get install libesmtp6
-
-
 test: topogigio
 	./topogigio
 
