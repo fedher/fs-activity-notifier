@@ -12,6 +12,13 @@
 #include "notifier.h"
 #include "mail.h"
 
+int _send_email(const char *msg, notifier_param_t *param) 
+{
+	send_email(param->to, param->subject, msg);
+	printf("email: %s\n", msg);
+	return 0;
+}
+
 
 int main(int argc, char **argv) 
 {
@@ -25,10 +32,9 @@ int main(int argc, char **argv)
 	};
 
 	notifier_t notifier = {
-		.oper = send_email,
+		.oper = _send_email,
 		.param = &notif_param 
 	};
-
 
 	if ((working_dir = getcwd(NULL, 0)) == NULL) {
 		perror("getcwd()");
