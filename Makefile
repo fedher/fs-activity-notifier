@@ -14,7 +14,7 @@ topogigio: inotify.o scandir.o monitor.o mail.o
 
 
 pre:
-	sudo apt-get install libesmtp5
+	sudo apt-get install libesmtp6
 
 
 test: topogigio
