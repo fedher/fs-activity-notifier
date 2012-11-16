@@ -6,7 +6,7 @@
 
 #include "mail.h"
 
-int send_email(const char *msg, notifier_param_t *param)
+void send_email(const char *msg, notifier_param_t *param)
 {
 	FILE *email = NULL;	
 	char mail_cmd[256];

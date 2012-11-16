@@ -8,6 +8,6 @@
 
 #include "notifier.h"
 
-int send_email(const char *msg, notifier_param_t *p);
+void send_email(const char *msg, notifier_param_t *p);
 
 #endif
