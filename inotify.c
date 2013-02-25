@@ -36,7 +36,9 @@ int main(int argc, char **argv)
 		.param = &notif_param 
 	};
 
-	if ((working_dir = getcwd(NULL, 0)) == NULL) {
+	working_dir = argv[1] ? argv[1] : getcwd(NULL, 0);
+
+	if (working_dir == NULL) {
 		perror("getcwd()");
 		return -2;
 	}
