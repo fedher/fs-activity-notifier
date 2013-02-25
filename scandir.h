@@ -4,6 +4,7 @@
 #define MAX_DIR_PATH 256
 #define FILENAME_LEN 80
 #define MAX_DIR_NUMBER 64
+#define RECUR_DEPTH 1
 
 #include <dirent.h>
 
