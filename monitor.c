@@ -15,9 +15,9 @@
 void *monitor(void *arg) 
 {
 	mon_params_t *mon_param = (mon_params_t *)arg;
-	int wd; /* watch descriptor */
+	int wd; 						/* watch descriptor */
 	int fd;
-	struct inotify_event *event; /* fs event */
+	struct inotify_event *event; 	/* fs event */
 	char buffer[BUF_LEN];
 	int nevents = 0;
 	int i;
