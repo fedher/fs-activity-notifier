@@ -25,54 +25,99 @@ static int filter_dir(const struct dirent *e)
 	return 0; 
 }
 
+static void create_monitor(pthread_t *tid, char *dir_path, int flags, 
+	notifier_t *notifier)
+{
+	mon_params_t *m_param; 	/* monitor params */
+
+	if ((m_param = malloc(sizeof *m_param)) == NULL) {
+		perror("malloc()");
+		return;
+	}
+
+	/* monitor params */
+	m_param->flags = flags;
+	strncpy(m_param->dir_path, dir_path, sizeof m_param->dir_path);
+	m_param->notifier = notifier;
+
+	/* monitor creation */	
+	pthread_create(tid, NULL, monitor, (void *)m_param);
+}
+
 int dir_add_monitors(char *path, struct dirent **namelist, int flags, 
 				notifier_t *notifier) 
 {
+	static int rec_depth = 0;		/* recursion depth */
+	static int rec_count = 0;		/* recursion count */
 	char dir_path[MAX_DIR_PATH];
-	int ndirs; 				/* directories number */
-	int nths;				/* threads number */
-	mon_params_t *m_param; 	/* monitor params */
-	pthread_t tid[MAX_DIR_NUMBER]; 
+	char *dir_name;
+	int ndirs;						/* directories number */
+	static int tidx = 0;			/* thread id */
+	static pthread_t tid[MAX_DIR_NUMBER]; 
 	int i;
+
+	if (rec_depth >= RECUR_DEPTH) {
+		--rec_depth;
+		return 0;
+	}
+
+	++rec_depth;
 
 	memset(dir_path, 0, sizeof dir_path);
 	memset(tid, 0, sizeof tid);
 
 	/* Looks for directories */
-	nths = ndirs = scandir(path, &namelist, filter_dir, alphasort);
+	ndirs = scandir(path, &namelist, filter_dir, alphasort);
 
 	if (ndirs < 0) {
 		perror("scandir");
 		return -1;
-	} 
+	}
+
+	#if DEBUG
+	printf("ndirs: %d\n", ndirs);
+	printf("tidx: %d\n", tidx);
+	#endif
+
+	/* Adds a monitor to the current directory and returns */
+	if (ndirs == 0) {
+		create_monitor(&tid[tidx++], path, flags, notifier);
+		return 0;
+	}
+
+	rec_count++;
 
 	/* Creates a monitor for each directory */
 	while (ndirs--) {
+		dir_name = namelist[ndirs]->d_name;
+
 		#if DEBUG
-		printf("%s/%s\n", path, namelist[ndirs]->d_name);
+		printf("(%d) %s/%s\n", ndirs, path, dir_name);
 		#endif
 
-		snprintf(dir_path, sizeof dir_path, "%s/%s", path, namelist[ndirs]->d_name);
+		snprintf(dir_path, sizeof dir_path, "%s/%s", path, dir_name);
+
 		dir_add_monitors(dir_path, namelist, flags, notifier);
-		free(namelist[ndirs]);
 
-		if ((m_param = malloc(sizeof *m_param)) == NULL) {
-			perror("malloc()");
-			return -3;	
-		}
-
-		/* monitor params */
-		m_param->flags = flags;
-		strncpy(m_param->dir_path, dir_path, sizeof m_param->dir_path);
-		m_param->notifier = notifier;
-
-		/* monitor creation */	
-		pthread_create(&tid[ndirs], NULL, monitor, (void *)m_param);
+		if (namelist[ndirs]) free(namelist[ndirs]);
+		
+		/* Creates a thread to monitor the directory 'dir_path' */	
+		create_monitor(&tid[tidx++], dir_path, flags, notifier);
 	}
-	free(namelist);
 
-	for (i = 0; i < nths; i++)
-		pthread_join(tid[i], NULL);
+	rec_count--;
+
+	if (namelist) free(namelist);
+
+	/* 
+	 * When the recursion ends, the first function call will wait for the 
+	 * launched threads.
+	 */
+	if (rec_count == 0) {
+		while (tidx--) {
+			pthread_join(tid[tidx], NULL);
+		}
+	}
 
 	return 0;
 }
